@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Calculator, Coins, Info, ChevronDown, ChevronUp, CheckCircle2, Receipt, Percent } from 'lucide-react';
+import { Calculator, Coins, Info, ChevronDown, ChevronUp, CheckCircle2, Receipt, Percent, Copy, Check } from 'lucide-react';
 
 // --- Types & Constants ---
 
@@ -63,6 +63,18 @@ export default function AgentFeeCalculator() {
   const [unit, setUnit] = useState<InputUnit>('wanyuan');
   const [discount, setDiscount] = useState<string>('100');
   const [showBreakdown, setShowBreakdown] = useState<boolean>(false);
+  const [copiedItem, setCopiedItem] = useState<string | null>(null);
+
+  // Copy to clipboard function
+  const copyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedItem(type);
+      setTimeout(() => setCopiedItem(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+    }
+  };
 
   // Calculation Logic
   const calculationResult = useMemo(() => {
@@ -195,6 +207,7 @@ export default function AgentFeeCalculator() {
                     step="0.01"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
+                    onWheel={(e) => e.currentTarget.blur()}
                     placeholder="0.00"
                     className="block w-full pl-10 pr-24 py-4 sm:text-xl border-2 border-gray-200 rounded-xl focus:ring-0 focus:border-blue-500 transition-colors"
                   />
@@ -205,7 +218,12 @@ export default function AgentFeeCalculator() {
                     <select
                       value={unit}
                       onChange={(e) => setUnit(e.target.value as InputUnit)}
-                      className="h-full pl-3 pr-8 py-0 bg-transparent text-gray-500 sm:text-lg font-medium rounded-r-xl focus:ring-0 border-0 cursor-pointer hover:text-gray-700"
+                      className="h-full pl-3 pr-8 py-0 bg-transparent text-gray-500 sm:text-lg font-medium rounded-r-xl focus:ring-0 border-0 cursor-pointer hover:text-gray-700 appearance-none"
+                      style={{
+                        backgroundImage: 'none',
+                        WebkitAppearance: 'none',
+                        MozAppearance: 'none'
+                      }}
                     >
                       <option value="yuan">元 (¥)</option>
                       <option value="wanyuan">万元 (w)</option>
@@ -254,6 +272,7 @@ export default function AgentFeeCalculator() {
                     max="100"
                     value={discount}
                     onChange={(e) => setDiscount(e.target.value)}
+                    onWheel={(e) => e.currentTarget.blur()}
                     className={`
                        block w-full pl-9 pr-4 py-2.5 text-sm border-2 rounded-lg focus:ring-0 transition-colors
                        ${!COMMON_DISCOUNTS.includes(discount) ? 'border-blue-500 focus:border-blue-500' : 'border-gray-200 focus:border-blue-500'}
@@ -275,18 +294,61 @@ export default function AgentFeeCalculator() {
                   {isDiscountApplied ? '折后代理服务费 (Discounted Fee)' : '预计代理服务费 (Estimated Fee)'}
                 </h3>
                 
-                <div className="flex flex-col sm:flex-row sm:items-baseline flex-wrap gap-x-4 gap-y-1">
-                  <span className="text-4xl sm:text-6xl font-bold tracking-tight text-white">
-                    {calculationResult ? formatCurrency(calculationResult.discountedFee) : '¥0.00'}
-                  </span>
-                  
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-baseline flex-wrap gap-x-4 gap-y-1">
+                    <span className="text-4xl sm:text-6xl font-bold tracking-tight text-white">
+                      {calculationResult ? formatCurrency(calculationResult.discountedFee) : '¥0.00'}
+                    </span>
+                    <span className="text-lg sm:text-xl text-slate-300 font-medium ml-2">
+                      ({calculationResult ? new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 6, maximumFractionDigits: 6 }).format(calculationResult.discountedFee / 10000) : '0.000000'} 万元)
+                    </span>
+                    <div className="flex gap-2 sm:ml-4 mt-2 sm:mt-0">
+                      <button
+                        onClick={() => calculationResult && copyToClipboard(calculationResult.discountedFee.toFixed(2), 'yuan')}
+                        disabled={!calculationResult}
+                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800/50 disabled:opacity-50 text-slate-200 hover:text-white transition-all duration-200 border border-slate-600 hover:border-slate-500"
+                        title="复制元"
+                      >
+                        {copiedItem === 'yuan' ? (
+                          <>
+                            <Check className="w-4 h-4 mr-1.5 text-green-400" />
+                            已复制
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4 mr-1.5" />
+                            复制元
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => calculationResult && copyToClipboard((calculationResult.discountedFee / 10000).toFixed(6), 'wanyuan')}
+                        disabled={!calculationResult}
+                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800/50 disabled:opacity-50 text-slate-200 hover:text-white transition-all duration-200 border border-slate-600 hover:border-slate-500"
+                        title="复制万元"
+                      >
+                        {copiedItem === 'wanyuan' ? (
+                          <>
+                            <Check className="w-4 h-4 mr-1.5 text-green-400" />
+                            已复制
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4 mr-1.5" />
+                            复制万元
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
                   {isDiscountApplied && calculationResult && (
                     <div className="flex items-center space-x-2">
                        <span className="text-lg text-slate-400 line-through decoration-slate-500/50">
-                        原价: {formatCurrency(calculationResult.originalTotalFee)}
+                        折扣前: {formatCurrency(calculationResult.originalTotalFee)}
                       </span>
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-300 border border-green-500/30">
-                        已省 {formatCurrency(calculationResult.originalTotalFee - calculationResult.discountedFee)}
+                        差额 {formatCurrency(calculationResult.originalTotalFee - calculationResult.discountedFee)}
                       </span>
                     </div>
                   )}
